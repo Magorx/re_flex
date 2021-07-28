@@ -1,5 +1,7 @@
 use std::collections::{HashMap, VecDeque, HashSet};
 
+pub mod binding_args;
+
 #[derive(Copy, Clone, PartialEq)]
 pub enum KeyEventType {
     PRESSED,
@@ -21,25 +23,25 @@ pub enum KeyPressMode {
 }
 
 // #[derive(Copy, Clone)]
-pub struct ControllerAction<TCONTRLLLED, VARGSEXTERNAL> {
-    pub func: fn(& mut TCONTRLLLED, &VARGSEXTERNAL, KeyPressMode, i8),
-    pub bind_arg: i8,
+pub struct ControllerAction<TCONTRLLLED, VARGSEXTERNAL, TBINDARG: Copy + Clone> {
+    pub func: fn(& mut TCONTRLLLED, &VARGSEXTERNAL, KeyPressMode, TBINDARG),
+    pub bind_arg: TBINDARG,
 }
 
-impl<TCONTRLLLED, VARGSEXTERNAL> ControllerAction<TCONTRLLLED, VARGSEXTERNAL> {
+impl<TCONTRLLLED, VARGSEXTERNAL, TBINDARG: Copy + Clone> ControllerAction<TCONTRLLLED, VARGSEXTERNAL, TBINDARG> {
     pub fn perform(&self, controlled: &mut TCONTRLLLED, args: &VARGSEXTERNAL, key_mode: KeyPressMode) {
         (self.func)(controlled, args, key_mode, self.bind_arg);
     }
 }
 
-pub struct Controller<TCONTRLLLED, VARGSEXTERNAL, TINPUT: std::cmp::Eq + std::hash::Hash> {
-    bindings: HashMap<TINPUT, ControllerAction< TCONTRLLLED, VARGSEXTERNAL>>,
+pub struct Controller<TCONTRLLLED, VARGSEXTERNAL, TINPUT: std::cmp::Eq + std::hash::Hash, TBINDARG: Copy + Clone> {
+    bindings: HashMap<TINPUT, ControllerAction< TCONTRLLLED, VARGSEXTERNAL, TBINDARG>>,
     events: VecDeque<KeyEvent<TINPUT>>,
     keys_press_mode: HashMap<TINPUT, KeyPressMode>,
     active_keys: HashSet<TINPUT>
 }
 
-impl<TCONTRLLLED, VARGSEXTERNAL, TINPUT: std::cmp::Eq + std::hash::Hash + Copy + Clone> Controller<TCONTRLLLED, VARGSEXTERNAL, TINPUT> {
+impl<TCONTRLLLED, VARGSEXTERNAL, TINPUT: std::cmp::Eq + std::hash::Hash + Copy + Clone, TBINDARG: Copy + Clone> Controller<TCONTRLLLED, VARGSEXTERNAL, TINPUT, TBINDARG> {
     pub fn new() -> Self {
         Self {
             bindings:        HashMap::new(),
@@ -49,7 +51,7 @@ impl<TCONTRLLLED, VARGSEXTERNAL, TINPUT: std::cmp::Eq + std::hash::Hash + Copy +
         }
     }
 
-    pub fn bind_key(&mut self, key: TINPUT, action: ControllerAction<TCONTRLLLED, VARGSEXTERNAL>) -> &mut Self {
+    pub fn bind_key(&mut self, key: TINPUT, action: ControllerAction<TCONTRLLLED, VARGSEXTERNAL, TBINDARG>) -> &mut Self {
         self.bindings.insert(key, action);
         
         self
