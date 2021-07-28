@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+// #![allow(dead_code)]
 
 use bevy::{input::keyboard::KeyboardInput, prelude::*};
 
@@ -11,11 +11,13 @@ const SCR_NAME: &str = "RE-FLEX";
 
 
 fn player_move(player: &mut LocalPlayer, _args: &CtrlArgs, key_mode: KeyPressMode, bind_arg: i8) {
-    // if key_mode == KeyPressMode::RELEASED {
-    //     return
-    // }
+    if key_mode == KeyPressMode::RELEASED {
+        return
+    }
 
-    println!("key press mode {}", key_mode as u8);
+    // if key_mode == KeyPressMode::PRESSED {
+    //     println!("pressed {} | mouse pos {}", bind_arg, args.mouse_pos);
+    // }
 
     match bind_arg {
         1 => {player.pos += Vec3::new(0.,  5., 0.);}
@@ -29,7 +31,6 @@ fn player_move(player: &mut LocalPlayer, _args: &CtrlArgs, key_mode: KeyPressMod
 
 fn main() {
     let mut ctrl: Controller<LocalPlayer, CtrlArgs, KeyCode> = Controller::new();
-    ctrl.controller_tick();
     
     ctrl.bind_key(KeyCode::W, ControllerAction {func: player_move, bind_arg: 1})
         .bind_key(KeyCode::A, ControllerAction {func: player_move, bind_arg: 2})
@@ -49,8 +50,8 @@ fn main() {
         .add_startup_system(engine_setup.system())
         .add_system(keyboard_event_system.system().label("keyboard_input"))
         .add_system(controll_local_player_system.system().after("keyboard_input"))
-        //.add_plugin(bevy::diagnostic::LogDiagnosticsPlugin::default())
-        //.add_plugin(bevy::diagnostic::FrameTimeDiagnosticsPlugin::default())
+        .add_plugin(bevy::diagnostic::LogDiagnosticsPlugin::default())
+        .add_plugin(bevy::diagnostic::FrameTimeDiagnosticsPlugin::default())
         .run();
 }
 
@@ -74,7 +75,7 @@ fn engine_setup(
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     commands.spawn_bundle(OrthographicCameraBundle::new_2d());
-    commands.spawn_bundle(UiCameraBundle::default());
+    // commands.spawn_bundle(UiCameraBundle::default());
 
     // player
     commands
@@ -90,40 +91,33 @@ fn engine_setup(
 }
 
 /// This system prints out all keyboard events as they come in
-fn keyboard_event_system(mut controller: ResMut<Controller<LocalPlayer, CtrlArgs, KeyCode>>, mut keyboard_input_events: EventReader<KeyboardInput>) {
+fn keyboard_event_system(mut controller: ResMut<Controller<LocalPlayer, CtrlArgs, KeyCode>>, mut keyboard_input_events: EventReader<KeyboardInput>, mut query: Query<(&mut LocalPlayer, &mut Transform)>) {
     for event in keyboard_input_events.iter() {
         let key = event.key_code.expect("no KeyCode inside a keyboard event");
 
+        // if key == KeyCode::W && event.state == bevy::input::ElementState::Pressed {
+        //     for (mut entity, mut transform) in query.iter_mut() {
+        //         entity.pos.y += 5.;
+        //         transform.translation = entity.pos;
+        //     }
+        // }
+
         match event.state {
-            bevy::input::ElementState::Pressed =>  { controller.key_event(KeyEvent {key: key, etype: KeyEventType::PRESSED }) }
+            bevy::input::ElementState::Pressed  => { controller.key_event(KeyEvent {key: key, etype: KeyEventType::PRESSED }) }
             bevy::input::ElementState::Released => { controller.key_event(KeyEvent {key: key, etype: KeyEventType::RELEASED}) }
         }
     }
 }
 
-fn controll_local_player_system(mut controller: ResMut<Controller<LocalPlayer, CtrlArgs, KeyCode>>, mut query: Query<(&mut LocalPlayer, &mut Transform)>) {
+fn controll_local_player_system(mut controller: ResMut<Controller<LocalPlayer, CtrlArgs, KeyCode>>, windows: ResMut<Windows>, mut query: Query<(&mut LocalPlayer, &mut Transform)>) {
     controller.controller_tick();
 
-    let args: CtrlArgs = CtrlArgs {mouse_pos: Vec2::new(0.0, 0.0)};
+    let window = windows.get_primary().unwrap();
+
+    let args: CtrlArgs = CtrlArgs {mouse_pos: match window.cursor_position() {Some(pos) => pos, None => Vec2::new(0., 0.)} };
 
     for (mut entity, mut transform) in query.iter_mut() {
         controller.bindings_tick(&mut entity, &args);
         transform.translation = entity.pos;
     }
-}
-
-struct LogicTickEvent {}
-struct PhysicsTickEvent {}
-struct VisualTickEvent {}
-
-struct LogicEventTriggerState {
-    event_timer: Timer,
-}
-
-struct PhysicsEventTriggerState {
-    event_timer: Timer,
-}
-
-struct VisualEventTriggerState {
-    event_timer: Timer,
 }
